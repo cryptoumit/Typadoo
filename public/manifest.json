@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Typadoo",
+  "version": "0.1.0",
+  "description": "Less typing. More doing.",
+  "permissions": ["storage"],
+  "optional_host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "Typadoo",
+    "default_popup": "popup.html"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
