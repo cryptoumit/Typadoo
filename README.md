@@ -114,9 +114,11 @@ implemented yet.
 ### Milestone 3 — Management interface
 
 - [x] Create dedicated extension settings/options page.
-- [x] Build snippet list, search, create, edit, and delete flows.
-- [x] Add grouping, favorites, tags, and default group behavior.
-- [x] Keep popup lightweight for quick actions only.
+- [x] Build snippet list, search, create, edit, duplicate, and delete flows.
+- [x] Add group management, snippet assignment, and destination selection when deleting populated groups.
+- [x] Add favorites, enabled/disabled status, tags, and group filtering.
+- [x] Add settings for shortcut prefix and appearance theme.
+- [x] Keep popup lightweight with favorite/search-based snippet copying and manager navigation.
 - [x] Integrate validated JSON backup and restore controls.
 
 ### Milestone 4 — Expansion engine
