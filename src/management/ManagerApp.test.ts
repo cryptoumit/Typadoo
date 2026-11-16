@@ -90,6 +90,28 @@ describe('snippet management workspace', () => {
       snippets: [expect.objectContaining({ title: 'Welcome', shortcut: ';welcome' })],
     });
 
+    const originalCard = Array.from(container.querySelectorAll<HTMLElement>('.snippet-card')).find(
+      (card) => card.textContent?.includes('Welcome'),
+    );
+    await act(async () => {
+      Array.from(originalCard?.querySelectorAll<HTMLButtonElement>('button') ?? [])
+        .find((button) => button.textContent === 'Edit')
+        ?.click();
+    });
+    const editDialog = container.querySelector('dialog');
+    await act(async () => {
+      setValue(
+        editDialog!.querySelector<HTMLTextAreaElement>('#snippet-content')!,
+        'Updated greeting.',
+      );
+      editDialog
+        ?.querySelector('form')
+        ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+    expect(stored['typadoo.library']).toMatchObject({
+      snippets: [expect.objectContaining({ title: 'Welcome', content: 'Updated greeting.' })],
+    });
+
     await act(async () => {
       container.querySelector<HTMLButtonElement>('[aria-label="Duplicate Welcome"]')?.click();
     });
@@ -160,13 +182,21 @@ describe('snippet management workspace', () => {
 
   it('requires a destination choice and moves snippets to the selected group on group deletion', async () => {
     const library = createDefaultLibrary(new Date('2025-01-01T00:00:00.000Z'));
+    library.groups.push({
+      id: 'group-custom',
+      name: 'Temporary group',
+      sortOrder: library.groups.length,
+      createdAt: '2025-01-01T00:00:00.000Z',
+      updatedAt: '2025-01-01T00:00:00.000Z',
+      isDefault: false,
+    });
     library.snippets.push({
       id: 'snippet-to-move',
       title: 'Billing response',
       shortcut: ';billing',
       content: 'Billing help',
       tags: [],
-      groupId: 'group-account-security',
+      groupId: 'group-custom',
       status: 'enabled',
       favorite: false,
       createdAt: '2025-01-01T00:00:00.000Z',
@@ -178,11 +208,11 @@ describe('snippet management workspace', () => {
     const container = document.createElement('div');
     const root = createRoot(container);
     await act(async () => root.render(React.createElement(ManagerApp)));
+    expect(container.querySelector('[aria-label="Delete General Support"]')).toBeNull();
+    expect(container.textContent).toContain("Can't delete");
 
     await act(async () => {
-      container
-        .querySelector<HTMLButtonElement>('[aria-label="Delete Account & Security"]')
-        ?.click();
+      container.querySelector<HTMLButtonElement>('[aria-label="Delete Temporary group"]')?.click();
     });
     const dialog = container.querySelector<HTMLDialogElement>('dialog');
     expect(dialog?.textContent).toContain('will move its 1 snippet');
@@ -197,7 +227,7 @@ describe('snippet management workspace', () => {
     });
     expect(dialog?.textContent).toContain('Choose a destination group.');
     expect((stored['typadoo.library'] as typeof library).groups).toContainEqual(
-      expect.objectContaining({ id: 'group-account-security' }),
+      expect.objectContaining({ id: 'group-custom' }),
     );
 
     await act(async () => setSelectValue(destination!, 'group-internal-notes'));
@@ -208,7 +238,7 @@ describe('snippet management workspace', () => {
     });
     const updatedLibrary = stored['typadoo.library'] as typeof library;
     expect(updatedLibrary.groups).not.toContainEqual(
-      expect.objectContaining({ id: 'group-account-security' }),
+      expect.objectContaining({ id: 'group-custom' }),
     );
     expect(updatedLibrary.snippets[0].groupId).toBe('group-internal-notes');
 

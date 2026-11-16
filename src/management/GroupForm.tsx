@@ -43,6 +43,7 @@ export function GroupForm({ group, groups, onSave, onCancel }: GroupFormProps) {
   }, [isDirty]);
 
   function cancel() {
+    if (saving) return;
     if (!isDirty || window.confirm('Discard your unsaved group changes?')) onCancel();
   }
 
@@ -110,6 +111,7 @@ export function GroupForm({ group, groups, onSave, onCancel }: GroupFormProps) {
             type="button"
             onClick={cancel}
             aria-label="Close group form"
+            disabled={saving}
           >
             ×
           </button>
@@ -121,6 +123,7 @@ export function GroupForm({ group, groups, onSave, onCancel }: GroupFormProps) {
           </span>
           <input
             autoFocus
+            disabled={saving}
             maxLength={80}
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -130,6 +133,7 @@ export function GroupForm({ group, groups, onSave, onCancel }: GroupFormProps) {
           <span>Description</span>
           <textarea
             maxLength={MAX_DESCRIPTION_LENGTH}
+            disabled={saving}
             rows={3}
             value={description}
             onChange={(event) => setDescription(event.target.value)}
@@ -137,7 +141,12 @@ export function GroupForm({ group, groups, onSave, onCancel }: GroupFormProps) {
         </label>
         <label className="field color-field">
           <span>Group color</span>
-          <input type="color" value={color} onChange={(event) => setColor(event.target.value)} />
+          <input
+            type="color"
+            value={color}
+            disabled={saving}
+            onChange={(event) => setColor(event.target.value)}
+          />
         </label>
 
         {error && (

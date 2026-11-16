@@ -97,6 +97,7 @@ export function SnippetForm({
   }
 
   function cancel() {
+    if (saving) return;
     if (!isDirty || window.confirm('Discard your unsaved snippet changes?')) {
       onCancel();
     }
@@ -212,6 +213,7 @@ export function SnippetForm({
             type="button"
             onClick={cancel}
             aria-label="Close snippet form"
+            disabled={saving}
           >
             ×
           </button>
@@ -224,6 +226,7 @@ export function SnippetForm({
             </span>
             <input
               autoFocus
+              disabled={saving}
               {...field('title')}
               maxLength={MAX_TITLE_LENGTH}
               value={values.title}
@@ -242,6 +245,7 @@ export function SnippetForm({
             </span>
             <input
               {...field('shortcut')}
+              disabled={saving}
               maxLength={43}
               value={values.shortcut}
               onChange={(event) => update('shortcut', event.target.value)}
@@ -260,6 +264,7 @@ export function SnippetForm({
             </span>
             <textarea
               {...field('content')}
+              disabled={saving}
               maxLength={MAX_CONTENT_LENGTH}
               rows={7}
               value={values.content}
@@ -285,6 +290,7 @@ export function SnippetForm({
             </span>
             <select
               {...field('groupId')}
+              disabled={saving}
               value={values.groupId}
               onChange={(event) => update('groupId', event.target.value)}
             >
@@ -305,6 +311,7 @@ export function SnippetForm({
             <span>Description</span>
             <input
               {...field('description')}
+              disabled={saving}
               maxLength={MAX_DESCRIPTION_LENGTH}
               value={values.description}
               onChange={(event) => update('description', event.target.value)}
@@ -322,6 +329,7 @@ export function SnippetForm({
             </span>
             <input
               {...field('tags')}
+              disabled={saving}
               value={values.tags}
               onChange={(event) => update('tags', event.target.value)}
               placeholder="billing, follow-up"
@@ -338,6 +346,7 @@ export function SnippetForm({
           <label className="check-label">
             <input
               type="checkbox"
+              disabled={saving}
               checked={values.favorite}
               onChange={(event) => update('favorite', event.target.checked)}
             />
@@ -346,6 +355,7 @@ export function SnippetForm({
           <label className="check-label">
             <input
               type="checkbox"
+              disabled={saving}
               checked={values.enabled}
               onChange={(event) => update('enabled', event.target.checked)}
             />

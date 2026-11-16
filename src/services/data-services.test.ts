@@ -121,6 +121,19 @@ describe('snippet and group services', () => {
     await expect(groups.getById(created.id)).resolves.toBeUndefined();
   });
 
+  it('prevents deletion of built-in groups without changing the library', async () => {
+    const { groups, repository } = createServices();
+    const builtIn = (await groups.list()).find((group) => group.isDefault);
+    const custom = await groups.create({ name: 'Custom destination' });
+    expect(builtIn).toBeDefined();
+    const before = await repository.getLibrary();
+
+    await expect(groups.delete(builtIn!.id, custom.id)).rejects.toThrow(
+      'Built-in groups cannot be deleted',
+    );
+    expect(await repository.getLibrary()).toEqual(before);
+  });
+
   it('rejects invalid group names, colors, and settings references', async () => {
     const { groups, settings } = createServices();
     await expect(groups.create({ name: 'General Support' })).rejects.toThrow(
@@ -138,6 +151,7 @@ describe('snippet and group services', () => {
     const { snippets, groups, repository } = createServices();
     const [defaultGroup] = await groups.list();
     const source = await groups.create({ name: 'Temporary' });
+    expect(source.isDefault).toBe(false);
     const snippet = await snippets.create({
       title: 'Reply',
       shortcut: ';reply',
@@ -150,6 +164,9 @@ describe('snippet and group services', () => {
     const library = await repository.getLibrary();
     expect(library.groups.some((group) => group.id === source.id)).toBe(false);
     expect(library.snippets.find((item) => item.id === snippet.id)?.groupId).toBe(defaultGroup.id);
+    expect(library.snippets).toContainEqual(
+      expect.objectContaining({ id: snippet.id, content: 'Keep this text' }),
+    );
   });
 
   it('updates the configured shortcut prefix and rewrites existing shortcuts atomically', async () => {

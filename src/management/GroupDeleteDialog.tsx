@@ -21,6 +21,10 @@ export function GroupDeleteDialog({
   const [error, setError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
+  function cancel() {
+    if (!saving) onCancel();
+  }
+
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
@@ -60,7 +64,7 @@ export function GroupDeleteDialog({
       aria-describedby="delete-group-description"
       onCancel={(event) => {
         event.preventDefault();
-        onCancel();
+        cancel();
       }}
     >
       <form className="editor-form" onSubmit={(event) => void submit(event)} noValidate>
@@ -72,7 +76,7 @@ export function GroupDeleteDialog({
           <button
             className="icon-button"
             type="button"
-            onClick={onCancel}
+            onClick={cancel}
             aria-label="Cancel group deletion"
             disabled={saving}
           >
@@ -86,7 +90,10 @@ export function GroupDeleteDialog({
         <label className="field">
           <span>Destination group</span>
           <select
+            autoFocus
             value={destinationGroupId}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? 'delete-group-error' : undefined}
             onChange={(event) => {
               setDestinationGroupId(event.target.value);
               setError(null);
@@ -102,17 +109,12 @@ export function GroupDeleteDialog({
           </select>
         </label>
         {error && (
-          <p className="notice notice-error" role="alert">
+          <p id="delete-group-error" className="notice notice-error" role="alert">
             {error}
           </p>
         )}
         <div className="form-actions">
-          <button
-            className="button button-quiet"
-            type="button"
-            onClick={onCancel}
-            disabled={saving}
-          >
+          <button className="button button-quiet" type="button" onClick={cancel} disabled={saving}>
             Cancel
           </button>
           <button className="button button-danger-quiet" type="submit" disabled={saving}>

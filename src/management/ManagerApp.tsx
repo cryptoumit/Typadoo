@@ -290,14 +290,25 @@ export function ManagerApp() {
                   >
                     Edit
                   </button>
-                  <button
-                    className="icon-button icon-button-small"
-                    type="button"
-                    aria-label={`Delete ${group.name}`}
-                    onClick={() => void deleteGroup(group)}
-                  >
-                    ×
-                  </button>
+                  {group.isDefault ? (
+                    <span
+                      className="group-protected-note"
+                      title="Built-in groups cannot be deleted."
+                      aria-label={`${group.name} is built in and cannot be deleted`}
+                      role="note"
+                    >
+                      Can't delete
+                    </span>
+                  ) : (
+                    <button
+                      className="icon-button icon-button-small"
+                      type="button"
+                      aria-label={`Delete ${group.name}`}
+                      onClick={() => void deleteGroup(group)}
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

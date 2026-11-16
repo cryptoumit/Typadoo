@@ -102,4 +102,52 @@ describe('popup manager action', () => {
       root.unmount();
     });
   });
+
+  it('searches non-favorite snippets and copies the matching result', async () => {
+    const library = createDefaultLibrary();
+    const snippet: Snippet = {
+      id: 'search-result',
+      title: 'Invoice follow-up',
+      shortcut: ';invoice',
+      content: 'Your invoice is ready.',
+      tags: [],
+      groupId: library.groups[0].id,
+      status: 'enabled',
+      favorite: false,
+      createdAt: '2026-01-02T03:04:05.000Z',
+      updatedAt: '2026-01-02T03:04:05.000Z',
+      usageCount: 0,
+    };
+    library.snippets.push(snippet);
+    stubChrome({ 'typadoo.library': library });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    const container = document.createElement('div');
+    const root = createRoot(container);
+
+    await act(async () => root.render(React.createElement(Popup)));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const search = container.querySelector<HTMLInputElement>('.popup-search input');
+    expect(search).not.toBeNull();
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      setter?.call(search, 'invoice');
+      search?.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(container.textContent).toContain('Invoice follow-up');
+    await act(async () => {
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Copy Invoice follow-up"]')
+        ?.click();
+    });
+
+    expect(writeText).toHaveBeenCalledWith(snippet.content);
+    await act(async () => root.unmount());
+  });
 });

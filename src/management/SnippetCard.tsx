@@ -80,6 +80,7 @@ export function SnippetCard({
           className="button button-small button-quiet"
           type="button"
           onClick={() => onEdit(snippet)}
+          aria-label={`Edit ${snippet.title}`}
         >
           Edit
         </button>
@@ -95,6 +96,7 @@ export function SnippetCard({
           className="button button-small button-danger-quiet"
           type="button"
           onClick={() => onDelete(snippet)}
+          aria-label={`Delete ${snippet.title}`}
         >
           Delete
         </button>

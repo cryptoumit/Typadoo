@@ -82,6 +82,9 @@ export class GroupService {
       if (!group) {
         throw new EntityNotFoundError('Group', id);
       }
+      if (group.isDefault) {
+        throw new DataConflictError('Built-in groups cannot be deleted');
+      }
       if (library.groups.length === 1) {
         throw new DataConflictError('At least one group must remain');
       }

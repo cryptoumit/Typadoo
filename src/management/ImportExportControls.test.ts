@@ -100,4 +100,32 @@ describe('backup controls', () => {
     expect(await repository.getLibrary()).toEqual(original);
     await act(async () => root.unmount());
   });
+
+  it('reports file-read errors without invoking the import callback', async () => {
+    const repository = new LibraryRepository(new MemoryStorage());
+    await repository.getLibrary();
+    const onImported = vi.fn().mockResolvedValue(undefined);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const container = document.createElement('div');
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(React.createElement(ImportExportControls, { repository, onImported }));
+    });
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+    const mockFile = {
+      text: vi.fn().mockRejectedValue(new Error('File could not be read')),
+    } as unknown as File;
+    Object.defineProperty(input, 'files', { configurable: true, value: [mockFile] });
+    await act(async () => {
+      input!.dispatchEvent(new Event('change', { bubbles: true }));
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      'File could not be read',
+    );
+    expect(onImported).not.toHaveBeenCalled();
+    await act(async () => root.unmount());
+  });
 });
