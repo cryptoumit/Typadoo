@@ -2,11 +2,13 @@
 
 **Less typing. More doing.**
 
-Typadoo is a lightweight text expansion and productivity tool designed to help customer support professionals and other busy teams save time, reduce repetitive typing, and communicate more consistently.
+Typadoo is being built as a lightweight text expansion and productivity tool for customer support professionals and other busy teams. Its intended goal is to reduce repetitive typing and help teams communicate more consistently.
 
-Create reusable text snippets, assign custom keyboard shortcuts, and instantly expand them wherever you work. From customer support replies and troubleshooting instructions to internal notes, follow-ups, and everyday messages, Typadoo makes frequently used text accessible with just a few keystrokes.
+The planned experience lets users create reusable text snippets, assign custom keyboard shortcuts, and expand them while working. From customer support replies and troubleshooting instructions to internal notes, follow-ups, and everyday messages, Typadoo is intended to make frequently used text accessible with just a few keystrokes.
 
-### Key Features
+### Planned Product Features
+
+These are product goals, not all currently implemented. See the implementation backlog below for current status.
 
 - **Text Expansion:** Replace custom shortcuts with full text snippets.
 - **Snippet Library:** Create, edit, organize, and manage reusable text.
@@ -65,9 +67,9 @@ npm run format
 - Local-first architecture only.
 - No backend, accounts, cloud sync, telemetry, or remote analytics.
 - User-controlled website permissions only.
-- Manual search and insertion remain available for unsupported editors.
-- Shortcuts use strict validation and configurable prefixes.
-- JSON import/export validates the complete library before replacement and preserves a recovery backup.
+- Manual search and insertion are planned as a fallback for unsupported editors.
+- The data layer validates shortcut formats, configurable prefixes, and duplicates.
+- The storage layer validates full-library JSON import/export and preserves a recovery backup.
 
 ## Storage foundation
 
