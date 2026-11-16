@@ -7,11 +7,11 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    rollupOptions: {
+    rolldownOptions: {
       input: {
-        popup: resolve(__dirname, 'popup.html'),
-        options: resolve(__dirname, 'options.html'),
-        background: resolve(__dirname, 'src/background.ts'),
+        popup: resolve(import.meta.dirname, 'popup.html'),
+        options: resolve(import.meta.dirname, 'options.html'),
+        background: resolve(import.meta.dirname, 'src/background.ts'),
       },
       output: {
         entryFileNames: '[name].js',
