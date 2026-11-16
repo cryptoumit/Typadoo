@@ -84,7 +84,8 @@ repository exposes recovery of a valid backup, and attempts to restore the previ
 replacement write fails.
 
 The storage foundation is available in `src/storage/` and the typed snippet, group, and settings
-services are in `src/services/`. The management UI and expansion engine are not implemented yet.
+services are in `src/services/`. The popup's **Open full manager** button opens the extension
+options page; snippet management and the expansion engine are not implemented yet.
 
 ## Implementation backlog
 
