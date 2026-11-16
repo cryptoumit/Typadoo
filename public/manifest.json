@@ -3,7 +3,7 @@
   "name": "Typadoo",
   "version": "0.1.0",
   "description": "Less typing. More doing.",
-  "permissions": ["storage"],
+  "permissions": ["storage", "clipboardWrite"],
   "optional_host_permissions": ["<all_urls>"],
   "action": {
     "default_title": "Typadoo",

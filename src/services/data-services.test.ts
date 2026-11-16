@@ -32,6 +32,9 @@ describe('snippet and group services', () => {
     const updated = await snippets.update(created.id, { title: 'Welcome', favorite: true });
     expect(updated.title).toBe('Welcome');
     expect(updated.favorite).toBe(true);
+    const disabled = await snippets.update(created.id, { status: 'disabled', favorite: false });
+    expect(disabled.status).toBe('disabled');
+    expect(disabled.favorite).toBe(false);
 
     await snippets.delete(created.id);
     expect(await snippets.getById(created.id)).toBeUndefined();
@@ -89,5 +92,40 @@ describe('snippet and group services', () => {
     await expect(settings.update({ defaultGroupId: 'missing' })).rejects.toThrow(
       /must reference an existing group/,
     );
+  });
+
+  it('moves group snippets to the chosen destination before deleting the group', async () => {
+    const { snippets, groups, repository } = createServices();
+    const [defaultGroup] = await groups.list();
+    const source = await groups.create({ name: 'Temporary' });
+    const snippet = await snippets.create({
+      title: 'Reply',
+      shortcut: ';reply',
+      content: 'Keep this text',
+      groupId: source.id,
+    });
+
+    await groups.delete(source.id, defaultGroup.id);
+
+    const library = await repository.getLibrary();
+    expect(library.groups.some((group) => group.id === source.id)).toBe(false);
+    expect(library.snippets.find((item) => item.id === snippet.id)?.groupId).toBe(defaultGroup.id);
+  });
+
+  it('updates the configured shortcut prefix and rewrites existing shortcuts atomically', async () => {
+    const { snippets, groups, settings, repository } = createServices();
+    const [group] = await groups.list();
+    await snippets.create({
+      title: 'Greeting',
+      shortcut: ';greet',
+      content: 'Hello',
+      groupId: group.id,
+    });
+
+    await settings.update({ shortcutPrefix: '!' });
+
+    const library = await repository.getLibrary();
+    expect(library.settings.shortcutPrefix).toBe('!');
+    expect(library.snippets[0].shortcut).toBe('!greet');
   });
 });

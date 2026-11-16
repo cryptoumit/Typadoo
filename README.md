@@ -66,8 +66,9 @@ npm run format
 
 - Local-first architecture only.
 - No backend, accounts, cloud sync, telemetry, or remote analytics.
-- User-controlled website permissions only.
-- Manual search and insertion are planned as a fallback for unsupported editors.
+- Requests `storage` for the local library and `clipboardWrite` for user-triggered snippet copying.
+- Website access remains optional and user-controlled.
+- Popup search and snippet copying are available; direct insertion into unsupported editors remains planned.
 - The data layer validates shortcut formats, configurable prefixes, and duplicates.
 - The storage layer validates full-library JSON import/export and preserves a recovery backup.
 
@@ -86,8 +87,10 @@ repository exposes recovery of a valid backup, and attempts to restore the previ
 replacement write fails.
 
 The storage foundation is available in `src/storage/` and the typed snippet, group, and settings
-services are in `src/services/`. The popup's **Open full manager** button opens the extension
-options page; snippet management and the expansion engine are not implemented yet.
+services are in `src/services/`. The extension options page now provides snippet and group
+management, search and filtering, settings, and JSON backup/restore. The popup provides favorite
+and search-based snippet copying. Automatic expansion, content scripts, and variables are not
+implemented yet.
 
 ## Implementation backlog
 
@@ -110,10 +113,11 @@ options page; snippet management and the expansion engine are not implemented ye
 
 ### Milestone 3 — Management interface
 
-- [ ] Create dedicated extension settings/options page.
-- [ ] Build snippet list, search, create, edit, and delete flows.
-- [ ] Add grouping, favorites, tags, and default group behavior.
-- [ ] Keep popup lightweight for quick actions only.
+- [x] Create dedicated extension settings/options page.
+- [x] Build snippet list, search, create, edit, and delete flows.
+- [x] Add grouping, favorites, tags, and default group behavior.
+- [x] Keep popup lightweight for quick actions only.
+- [x] Integrate validated JSON backup and restore controls.
 
 ### Milestone 4 — Expansion engine
 

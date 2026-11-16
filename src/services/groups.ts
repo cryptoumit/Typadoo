@@ -76,7 +76,7 @@ export class GroupService {
       });
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, moveSnippetsToGroupId?: string): Promise<void> {
     await this.repository.updateLibrary((library) => {
       const group = library.groups.find((item) => item.id === id);
       if (!group) {
@@ -85,19 +85,34 @@ export class GroupService {
       if (library.groups.length === 1) {
         throw new DataConflictError('At least one group must remain');
       }
-      if (library.snippets.some((snippet) => snippet.groupId === id)) {
-        throw new DataConflictError(
-          "Move or delete this group's snippets before deleting the group",
-        );
+      const affectedSnippets = library.snippets.filter((snippet) => snippet.groupId === id);
+      if (affectedSnippets.length > 0 && !moveSnippetsToGroupId) {
+        throw new DataConflictError('Choose a destination group before deleting this group');
       }
       const groups = library.groups.filter((item) => item.id !== id);
+      const destination = moveSnippetsToGroupId
+        ? groups.find((item) => item.id === moveSnippetsToGroupId)
+        : undefined;
+      if (affectedSnippets.length > 0 && !destination) {
+        throw new DataConflictError('The destination group does not exist');
+      }
+      const timestamp = new Date().toISOString();
+      const snippets =
+        affectedSnippets.length > 0 && destination
+          ? library.snippets.map((snippet) =>
+              snippet.groupId === id
+                ? { ...snippet, groupId: destination.id, updatedAt: timestamp }
+                : snippet,
+            )
+          : library.snippets;
       const defaultGroupId =
         library.settings.defaultGroupId === id
-          ? groups.sort((left, right) => left.sortOrder - right.sortOrder)[0].id
+          ? (destination ?? groups.sort((left, right) => left.sortOrder - right.sortOrder)[0]).id
           : library.settings.defaultGroupId;
       return {
         ...library,
         groups,
+        snippets,
         settings: { ...library.settings, defaultGroupId },
       };
     });
