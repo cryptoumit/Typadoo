@@ -33,14 +33,14 @@ This repository is a local-first Chrome Extension project built with Manifest V3
 
 ### Requirements
 
-- Node.js 22.13+
-- npm 9+
+- Node.js 22.13+ (or 24+)
+- npm 10+
 - Chrome or Chromium for unpacked extension testing
 
 ### Install dependencies
 
 ```bash
-npm install
+npm ci
 ```
 
 ### Development commands
