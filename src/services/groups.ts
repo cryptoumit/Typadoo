@@ -89,13 +89,14 @@ export class GroupService {
         throw new DataConflictError('At least one group must remain');
       }
       const affectedSnippets = library.snippets.filter((snippet) => snippet.groupId === id);
-      if (affectedSnippets.length > 0 && !moveSnippetsToGroupId) {
-        throw new DataConflictError('Choose a destination group before deleting this group');
-      }
       const groups = library.groups.filter((item) => item.id !== id);
+      const fallbackGroup =
+        groups.find((item) => item.id === library.settings.defaultGroupId) ??
+        groups.find((item) => item.isDefault) ??
+        groups.slice().sort((left, right) => left.sortOrder - right.sortOrder)[0];
       const destination = moveSnippetsToGroupId
         ? groups.find((item) => item.id === moveSnippetsToGroupId)
-        : undefined;
+        : fallbackGroup;
       if (affectedSnippets.length > 0 && !destination) {
         throw new DataConflictError('The destination group does not exist');
       }
@@ -110,7 +111,7 @@ export class GroupService {
           : library.snippets;
       const defaultGroupId =
         library.settings.defaultGroupId === id
-          ? (destination ?? groups.sort((left, right) => left.sortOrder - right.sortOrder)[0]).id
+          ? (destination ?? fallbackGroup).id
           : library.settings.defaultGroupId;
       return {
         ...library,

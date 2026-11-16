@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import type { SnippetLibrary } from '../types';
 import { isValidShortcutPrefix } from '../lib/validation';
 
@@ -9,17 +9,20 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ library, onSave, onThemeChange }: SettingsPanelProps) {
+  const settingsKey = `${library.settings.shortcutPrefix}\u0000${library.settings.theme}`;
   const [shortcutPrefix, setShortcutPrefix] = useState(library.settings.shortcutPrefix);
   const [theme, setTheme] = useState(library.settings.theme);
+  const [syncedSettingsKey, setSyncedSettingsKey] = useState(settingsKey);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingTheme, setSavingTheme] = useState(false);
 
-  useEffect(() => {
+  if (syncedSettingsKey !== settingsKey) {
+    setSyncedSettingsKey(settingsKey);
     setShortcutPrefix(library.settings.shortcutPrefix);
     setTheme(library.settings.theme);
-  }, [library.settings.shortcutPrefix, library.settings.theme]);
+  }
 
   async function changeTheme(nextTheme: SnippetLibrary['settings']['theme']) {
     setTheme(nextTheme);

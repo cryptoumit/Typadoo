@@ -4,6 +4,7 @@ import type { SnippetGroup } from '../types';
 interface GroupDeleteDialogProps {
   group: SnippetGroup;
   groups: SnippetGroup[];
+  defaultDestinationGroupId: string;
   snippetCount: number;
   onConfirm: (destinationGroupId: string) => Promise<void>;
   onCancel: () => void;
@@ -12,11 +13,12 @@ interface GroupDeleteDialogProps {
 export function GroupDeleteDialog({
   group,
   groups,
+  defaultDestinationGroupId,
   snippetCount,
   onConfirm,
   onCancel,
 }: GroupDeleteDialogProps) {
-  const [destinationGroupId, setDestinationGroupId] = useState('');
+  const [destinationGroupId, setDestinationGroupId] = useState(defaultDestinationGroupId);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);

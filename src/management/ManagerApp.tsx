@@ -499,6 +499,15 @@ export function ManagerApp() {
         <GroupDeleteDialog
           group={deletingGroup}
           groups={library.groups.filter((group) => group.id !== deletingGroup.id)}
+          defaultDestinationGroupId={
+            library.groups.find(
+              (group) =>
+                group.id === library.settings.defaultGroupId && group.id !== deletingGroup.id,
+            )?.id ??
+            library.groups.find((group) => group.isDefault && group.id !== deletingGroup.id)?.id ??
+            library.groups.find((group) => group.id !== deletingGroup.id)?.id ??
+            ''
+          }
           snippetCount={
             library.snippets.filter((snippet) => snippet.groupId === deletingGroup.id).length
           }

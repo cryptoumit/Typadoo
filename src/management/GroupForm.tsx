@@ -16,8 +16,10 @@ export function GroupForm({ group, groups, onSave, onCancel }: GroupFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const snapshot = useRef(JSON.stringify([name, description, color]));
-  const isDirty = JSON.stringify([name, description, color]) !== snapshot.current;
+  const [initialSnapshot] = useState(() =>
+    JSON.stringify([group?.name ?? '', group?.description ?? '', group?.color ?? '#6d5ce7']),
+  );
+  const isDirty = JSON.stringify([name, description, color]) !== initialSnapshot;
 
   useEffect(() => {
     const dialog = dialogRef.current;

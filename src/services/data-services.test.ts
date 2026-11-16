@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DataConflictError, EntityNotFoundError } from './errors';
+import { EntityNotFoundError } from './errors';
 import { GroupService } from './groups';
 import { SettingsService } from './settings';
 import { SnippetService } from './snippets';
@@ -7,9 +7,11 @@ import { LibraryRepository } from '../storage/repository';
 import { MemoryStorage } from '../test/memory-storage';
 
 function createServices() {
-  const repository = new LibraryRepository(new MemoryStorage());
+  const storage = new MemoryStorage();
+  const repository = new LibraryRepository(storage);
   return {
     repository,
+    storage,
     snippets: new SnippetService(repository),
     groups: new GroupService(repository),
     settings: new SettingsService(repository),
@@ -100,7 +102,7 @@ describe('snippet and group services', () => {
     ).rejects.toThrow(/must start with/);
   });
 
-  it('creates and updates groups, and prevents deleting referenced groups', async () => {
+  it('creates and updates groups, reassigning snippets when a custom group is deleted', async () => {
     const { snippets, groups, settings } = createServices();
     const created = await groups.create({ name: 'Custom', color: '#123456' });
     expect(await groups.getById(created.id)).toEqual(created);
@@ -112,11 +114,10 @@ describe('snippet and group services', () => {
       content: 'Reply text',
       groupId: created.id,
     });
-    await expect(groups.delete(created.id)).rejects.toBeInstanceOf(DataConflictError);
-    await snippets.delete((await snippets.list())[0].id);
-
+    const [defaultGroup] = await groups.list();
     await settings.update({ defaultGroupId: created.id });
     await groups.delete(created.id);
+    expect((await snippets.list())[0].groupId).toBe(defaultGroup.id);
     expect((await settings.get()).defaultGroupId).not.toBe(created.id);
     await expect(groups.getById(created.id)).resolves.toBeUndefined();
   });
@@ -134,6 +135,25 @@ describe('snippet and group services', () => {
     expect(await repository.getLibrary()).toEqual(before);
   });
 
+  it('leaves the library unchanged when deleting a custom group fails to persist', async () => {
+    const { groups, snippets, repository, storage } = createServices();
+    const [defaultGroup] = await groups.list();
+    const custom = await groups.create({ name: 'Temporary' });
+    await snippets.create({
+      title: 'Reply',
+      shortcut: ';reply',
+      content: 'Keep this text',
+      groupId: custom.id,
+    });
+    const before = await repository.getLibrary();
+    storage.failNextSetFor = 'typadoo.library';
+
+    await expect(groups.delete(custom.id)).rejects.toThrow(/write failed/);
+    expect(await repository.getLibrary()).toEqual(before);
+    expect(before.snippets[0].groupId).toBe(custom.id);
+    expect(before.settings.defaultGroupId).toBe(defaultGroup.id);
+  });
+
   it('rejects invalid group names, colors, and settings references', async () => {
     const { groups, settings } = createServices();
     await expect(groups.create({ name: 'General Support' })).rejects.toThrow(
@@ -147,7 +167,7 @@ describe('snippet and group services', () => {
     );
   });
 
-  it('moves group snippets to the chosen destination before deleting the group', async () => {
+  it('moves group snippets to the designated default group before deleting the group', async () => {
     const { snippets, groups, repository } = createServices();
     const [defaultGroup] = await groups.list();
     const source = await groups.create({ name: 'Temporary' });
@@ -159,7 +179,7 @@ describe('snippet and group services', () => {
       groupId: source.id,
     });
 
-    await groups.delete(source.id, defaultGroup.id);
+    await groups.delete(source.id);
 
     const library = await repository.getLibrary();
     expect(library.groups.some((group) => group.id === source.id)).toBe(false);

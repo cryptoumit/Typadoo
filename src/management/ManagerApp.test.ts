@@ -217,9 +217,10 @@ describe('snippet management workspace', () => {
     const dialog = container.querySelector<HTMLDialogElement>('dialog');
     expect(dialog?.textContent).toContain('will move its 1 snippet');
     const destination = dialog?.querySelector<HTMLSelectElement>('select');
-    expect(destination?.value).toBe('');
+    expect(destination?.value).toBe('group-general-support');
     expect(dialog?.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
 
+    await act(async () => setSelectValue(destination!, ''));
     await act(async () => {
       dialog
         ?.querySelector('form')

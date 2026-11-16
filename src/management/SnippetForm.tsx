@@ -62,8 +62,8 @@ export function SnippetForm({
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const initialSnapshot = useRef(JSON.stringify(valuesAtOpen));
-  const isDirty = JSON.stringify(values) !== initialSnapshot.current;
+  const [initialSnapshot] = useState(() => JSON.stringify(valuesAtOpen));
+  const isDirty = JSON.stringify(values) !== initialSnapshot;
 
   useEffect(() => {
     const dialog = dialogRef.current;
