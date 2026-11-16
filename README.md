@@ -1,4 +1,5 @@
 # Typadoo
+
 **Less typing. More doing.**
 
 Typadoo is a lightweight text expansion and productivity tool designed to help customer support professionals and other busy teams save time, reduce repetitive typing, and communicate more consistently.
@@ -66,7 +67,24 @@ npm run format
 - User-controlled website permissions only.
 - Manual search and insertion remain available for unsupported editors.
 - Shortcuts use strict validation and configurable prefixes.
-- JSON import/export is designed for safe backup and recovery.
+- JSON import/export validates the complete library before replacement and preserves a recovery backup.
+
+## Storage foundation
+
+The current data schema is version 1 and stores the complete library under the `typadoo.library`
+key in `chrome.storage.local`. The library contains snippets, groups, and settings. The first
+read initializes seven built-in groups and local settings; invalid stored data is reported rather
+than silently replaced. A 4 MiB library limit leaves room for a recovery copy within Chrome's
+local-storage quota.
+
+Import is a validated full-library replacement, not a merge. Unsupported versions, unknown
+fields, invalid records, and duplicate shortcuts are rejected before storage changes. Before a
+valid replacement, the previous raw library is saved under `typadoo.recoveryBackup`. The
+repository exposes recovery of a valid backup, and attempts to restore the previous library if a
+replacement write fails.
+
+The storage foundation is available in `src/storage/` and the typed snippet, group, and settings
+services are in `src/services/`. The management UI and expansion engine are not implemented yet.
 
 ## Implementation backlog
 
@@ -80,10 +98,12 @@ npm run format
 
 ### Milestone 2 — Storage and schema
 
-- [ ] Add chrome.storage.local persistence layer.
-- [ ] Define versioned snippet/group/settings schema.
-- [ ] Add safe JSON import and export utilities.
-- [ ] Add validation and duplicate-shortcut checks.
+- [x] Add chrome.storage.local persistence layer.
+- [x] Define versioned snippet/group/settings schema.
+- [x] Add safe JSON import and export utilities.
+- [x] Add validation and duplicate-shortcut checks.
+- [x] Add typed snippet, group, and settings services.
+- [x] Add default groups, failure handling, and recovery backup support.
 
 ### Milestone 3 — Management interface
 

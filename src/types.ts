@@ -29,12 +29,11 @@ export interface SnippetGroup {
 }
 
 export interface TypadooSettings {
-  version: number;
   triggerMode: ShortcutTrigger;
   expandOnSpace: boolean;
   expandOnTab: boolean;
   requireExplicitTrigger: boolean;
-  defaultGroupId?: string;
+  defaultGroupId: string;
   shortcutPrefix: string;
   debugMode: boolean;
   theme: 'light' | 'dark' | 'system';
@@ -56,4 +55,16 @@ export interface ImportReport {
   importedCount: number;
   skippedCount: number;
   issues: ValidationIssue[];
+}
+
+export type SnippetDraft = Pick<Snippet, 'title' | 'shortcut' | 'content' | 'groupId'> &
+  Partial<Pick<Snippet, 'description' | 'tags' | 'status' | 'favorite'>>;
+
+export type GroupDraft = Pick<SnippetGroup, 'name'> &
+  Partial<Pick<SnippetGroup, 'description' | 'color' | 'sortOrder'>>;
+
+export interface RecoveryBackup {
+  version: 1;
+  savedAt: string;
+  data: unknown;
 }

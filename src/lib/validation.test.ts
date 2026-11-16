@@ -16,5 +16,7 @@ describe('shortcut validation', () => {
     expect(isValidShortcut('', ';')).toBe(false);
     expect(isValidShortcut('greet', ';')).toBe(false);
     expect(isValidShortcut(';hello world', ';')).toBe(false);
+    expect(isValidShortcut(' ;greet', ';')).toBe(false);
+    expect(isValidShortcut(';greet', 'a')).toBe(false);
   });
 });
