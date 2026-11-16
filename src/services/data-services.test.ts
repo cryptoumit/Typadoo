@@ -41,6 +41,46 @@ describe('snippet and group services', () => {
     await expect(snippets.delete(created.id)).rejects.toBeInstanceOf(EntityNotFoundError);
   });
 
+  it('duplicates a snippet with a unique, valid shortcut and resets its usage count', async () => {
+    const { snippets, groups, repository } = createServices();
+    const [group] = await groups.list();
+    const original = await snippets.create({
+      title: 'Greeting',
+      shortcut: `;${'a'.repeat(40)}`,
+      content: 'Hello',
+      groupId: group.id,
+      tags: ['welcome'],
+      favorite: true,
+    });
+    await snippets.create({
+      title: 'Existing copy',
+      shortcut: `;${'a'.repeat(35)}-copy`,
+      content: 'Existing',
+      groupId: group.id,
+    });
+    await repository.updateLibrary((library) => ({
+      ...library,
+      snippets: library.snippets.map((snippet) =>
+        snippet.id === original.id ? { ...snippet, usageCount: 7 } : snippet,
+      ),
+    }));
+
+    const duplicate = await snippets.duplicate(original.id);
+
+    expect(duplicate).toMatchObject({
+      title: 'Copy of Greeting',
+      content: original.content,
+      groupId: original.groupId,
+      tags: original.tags,
+      favorite: true,
+      usageCount: 0,
+    });
+    expect(duplicate.id).not.toBe(original.id);
+    expect(duplicate.shortcut).toBe(`;${'a'.repeat(33)}-copy-2`);
+    expect(duplicate.shortcut.length).toBeLessThanOrEqual(41);
+    await expect(snippets.duplicate('missing')).rejects.toBeInstanceOf(EntityNotFoundError);
+  });
+
   it('validates shortcut format and rejects duplicate shortcuts case-insensitively', async () => {
     const { snippets, groups } = createServices();
     const [group] = await groups.list();

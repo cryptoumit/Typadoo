@@ -5,6 +5,7 @@ interface SnippetCardProps {
   snippet: Snippet;
   group?: SnippetGroup;
   onCopy: (snippet: Snippet) => void;
+  onDuplicate: (snippet: Snippet) => void;
   onEdit: (snippet: Snippet) => void;
   onDelete: (snippet: Snippet) => void;
   onToggleFavorite: (snippet: Snippet) => void;
@@ -15,6 +16,7 @@ export function SnippetCard({
   snippet,
   group,
   onCopy,
+  onDuplicate,
   onEdit,
   onDelete,
   onToggleFavorite,
@@ -80,6 +82,14 @@ export function SnippetCard({
           onClick={() => onEdit(snippet)}
         >
           Edit
+        </button>
+        <button
+          className="button button-small button-quiet"
+          type="button"
+          onClick={() => onDuplicate(snippet)}
+          aria-label={`Duplicate ${snippet.title}`}
+        >
+          Duplicate
         </button>
         <button
           className="button button-small button-danger-quiet"

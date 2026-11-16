@@ -4,6 +4,7 @@ import { searchSnippets, type SnippetFilter } from '../services/search';
 import { GroupForm } from './GroupForm';
 import { groupService, libraryRepository, settingsService, snippetService } from './client';
 import { ImportExportControls } from './ImportExportControls';
+import { GroupDeleteDialog } from './GroupDeleteDialog';
 import { SettingsPanel } from './SettingsPanel';
 import { SnippetCard } from './SnippetCard';
 import { SnippetForm } from './SnippetForm';
@@ -28,6 +29,7 @@ export function ManagerApp() {
   const [editingSnippet, setEditingSnippet] = useState<Snippet | null>(null);
   const [snippetFormOpen, setSnippetFormOpen] = useState(false);
   const [groupDialog, setGroupDialog] = useState<GroupDialogState>(null);
+  const [deletingGroup, setDeletingGroup] = useState<SnippetGroup | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const theme = library?.settings.theme;
@@ -94,25 +96,35 @@ export function ManagerApp() {
     const remaining = library.groups
       .filter((item) => item.id !== group.id)
       .sort((left, right) => left.sortOrder - right.sortOrder);
-    const destination =
-      remaining.find((item) => item.id === 'group-general-support') ?? remaining[0];
-    if (!destination) {
+    if (remaining.length === 0) {
       setActionError('At least one group must remain.');
       return;
     }
     const affectedCount = library.snippets.filter((snippet) => snippet.groupId === group.id).length;
-    const confirmation =
-      affectedCount > 0
-        ? `Delete "${group.name}"? Its ${affectedCount} snippet${affectedCount === 1 ? '' : 's'} will be moved to "${destination.name}".`
-        : `Delete the empty group "${group.name}"?`;
-    if (!window.confirm(confirmation)) return;
+    if (affectedCount > 0) {
+      setDeletingGroup(group);
+      setActionError(null);
+      return;
+    }
+    if (!window.confirm(`Delete the empty group "${group.name}"?`)) return;
 
-    await runAction(
-      () => groupService.delete(group.id, destination.id),
-      affectedCount > 0
-        ? `Group deleted; ${affectedCount} snippet${affectedCount === 1 ? '' : 's'} moved to ${destination.name}.`
-        : 'Group deleted.',
+    await runAction(() => groupService.delete(group.id), 'Group deleted.');
+    if (filter.type === 'group' && filter.groupId === group.id) setFilter(ALL_FILTER);
+  }
+
+  async function confirmGroupDeletion(destinationId: string) {
+    if (!deletingGroup || !library) return;
+    const group = deletingGroup;
+    const destination = library.groups.find((item) => item.id === destinationId);
+    if (!destination) throw new Error('Choose a valid destination group.');
+    const affectedCount = library.snippets.filter((snippet) => snippet.groupId === group.id).length;
+    await groupService.delete(group.id, destination.id);
+    await reload();
+    setDeletingGroup(null);
+    setNotice(
+      `Group deleted; ${affectedCount} snippet${affectedCount === 1 ? '' : 's'} moved to ${destination.name}.`,
     );
+    setActionError(null);
     if (filter.type === 'group' && filter.groupId === group.id) setFilter(ALL_FILTER);
   }
 
@@ -346,6 +358,10 @@ export function ManagerApp() {
                 await settingsService.update(changes);
                 await reload();
               }}
+              onThemeChange={async (nextTheme) => {
+                await settingsService.update({ theme: nextTheme });
+                await reload();
+              }}
             />
           ) : (
             <>
@@ -389,6 +405,12 @@ export function ManagerApp() {
                       snippet={snippet}
                       group={library.groups.find((group) => group.id === snippet.groupId)}
                       onCopy={(item) => void copySnippet(item)}
+                      onDuplicate={(item) =>
+                        void runAction(
+                          () => snippetService.duplicate(item.id),
+                          `Created a copy of "${item.title}".`,
+                        )
+                      }
                       onEdit={editSnippet}
                       onDelete={(item) => {
                         if (window.confirm(`Delete "${item.title}"? This cannot be undone.`)) {
@@ -460,6 +482,17 @@ export function ManagerApp() {
           groups={library.groups}
           onSave={saveGroup}
           onCancel={() => setGroupDialog(null)}
+        />
+      )}
+      {deletingGroup && (
+        <GroupDeleteDialog
+          group={deletingGroup}
+          groups={library.groups.filter((group) => group.id !== deletingGroup.id)}
+          snippetCount={
+            library.snippets.filter((snippet) => snippet.groupId === deletingGroup.id).length
+          }
+          onConfirm={confirmGroupDeletion}
+          onCancel={() => setDeletingGroup(null)}
         />
       )}
     </div>

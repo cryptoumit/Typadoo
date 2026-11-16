@@ -2,6 +2,7 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ManagerApp } from './ManagerApp';
+import { createDefaultLibrary } from '../storage/defaults';
 
 function installChromeStorage() {
   const data: Record<string, unknown> = {};
@@ -31,6 +32,12 @@ function setValue(element: HTMLInputElement | HTMLTextAreaElement, value: string
   element.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
+function setSelectValue(element: HTMLSelectElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
+  setter?.call(element, value);
+  element.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
 describe('snippet management workspace', () => {
   let stored: Record<string, unknown>;
 
@@ -39,6 +46,7 @@ describe('snippet management workspace', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -83,6 +91,28 @@ describe('snippet management workspace', () => {
     });
 
     await act(async () => {
+      container.querySelector<HTMLButtonElement>('[aria-label="Duplicate Welcome"]')?.click();
+    });
+    expect((stored['typadoo.library'] as { snippets: unknown[] }).snippets).toHaveLength(2);
+    expect(container.textContent).toContain('Copy of Welcome');
+    expect(container.textContent).toContain(';welcome-copy');
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const duplicateCard = Array.from(container.querySelectorAll<HTMLElement>('.snippet-card')).find(
+      (card) => card.textContent?.includes('Copy of Welcome'),
+    );
+    await act(async () => {
+      if (duplicateCard) {
+        Array.from(duplicateCard.querySelectorAll<HTMLButtonElement>('button'))
+          .find((button) => button.textContent === 'Delete')
+          ?.click();
+      }
+    });
+    expect((stored['typadoo.library'] as { snippets: unknown[] }).snippets).toHaveLength(1);
+    expect(container.textContent).toContain('Welcome');
+    expect(container.textContent).not.toContain('Copy of Welcome');
+
+    await act(async () => {
       Array.from(container.querySelectorAll('button'))
         .find((button) => button.textContent?.includes('Add snippet'))
         ?.click();
@@ -103,6 +133,84 @@ describe('snippet management workspace', () => {
     });
     expect(duplicateDialog?.textContent).toContain('That shortcut is already in use.');
     expect((stored['typadoo.library'] as { snippets: unknown[] }).snippets).toHaveLength(1);
+
+    await act(async () => root.unmount());
+  });
+
+  it('applies and persists a theme immediately when the appearance setting changes', async () => {
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    await act(async () => root.render(React.createElement(ManagerApp)));
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
+        .find((button) => button.textContent === 'Settings')
+        ?.click();
+    });
+
+    const appearance = container.querySelector<HTMLSelectElement>('.settings-form select');
+    expect(appearance).not.toBeNull();
+    await act(async () => setSelectValue(appearance!, 'dark'));
+
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect((stored['typadoo.library'] as { settings: { theme: string } }).settings.theme).toBe(
+      'dark',
+    );
+    await act(async () => root.unmount());
+  });
+
+  it('requires a destination choice and moves snippets to the selected group on group deletion', async () => {
+    const library = createDefaultLibrary(new Date('2025-01-01T00:00:00.000Z'));
+    library.snippets.push({
+      id: 'snippet-to-move',
+      title: 'Billing response',
+      shortcut: ';billing',
+      content: 'Billing help',
+      tags: [],
+      groupId: 'group-account-security',
+      status: 'enabled',
+      favorite: false,
+      createdAt: '2025-01-01T00:00:00.000Z',
+      updatedAt: '2025-01-01T00:00:00.000Z',
+      usageCount: 0,
+    });
+    stored['typadoo.library'] = library;
+
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    await act(async () => root.render(React.createElement(ManagerApp)));
+
+    await act(async () => {
+      container
+        .querySelector<HTMLButtonElement>('[aria-label="Delete Account & Security"]')
+        ?.click();
+    });
+    const dialog = container.querySelector<HTMLDialogElement>('dialog');
+    expect(dialog?.textContent).toContain('will move its 1 snippet');
+    const destination = dialog?.querySelector<HTMLSelectElement>('select');
+    expect(destination?.value).toBe('');
+    expect(dialog?.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
+
+    await act(async () => {
+      dialog
+        ?.querySelector('form')
+        ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+    expect(dialog?.textContent).toContain('Choose a destination group.');
+    expect((stored['typadoo.library'] as typeof library).groups).toContainEqual(
+      expect.objectContaining({ id: 'group-account-security' }),
+    );
+
+    await act(async () => setSelectValue(destination!, 'group-internal-notes'));
+    await act(async () => {
+      dialog
+        ?.querySelector('form')
+        ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+    const updatedLibrary = stored['typadoo.library'] as typeof library;
+    expect(updatedLibrary.groups).not.toContainEqual(
+      expect.objectContaining({ id: 'group-account-security' }),
+    );
+    expect(updatedLibrary.snippets[0].groupId).toBe('group-internal-notes');
 
     await act(async () => root.unmount());
   });

@@ -1,6 +1,9 @@
 import type { Snippet, SnippetDraft } from '../types';
 import { LibraryRepository } from '../storage/repository';
+import { MAX_TITLE_LENGTH } from '../storage/schema';
 import { EntityNotFoundError } from './errors';
+
+const MAX_SHORTCUT_BODY_LENGTH = 40;
 
 export class SnippetService {
   constructor(private readonly repository: LibraryRepository) {}
@@ -35,6 +38,43 @@ export class SnippetService {
         }
 
         return { ...library, snippets: [...library.snippets, snippet] };
+      })
+      .then((library) => library.snippets[library.snippets.length - 1]);
+  }
+
+  duplicate(id: string): Promise<Snippet> {
+    return this.repository
+      .updateLibrary((library) => {
+        const original = library.snippets.find((snippet) => snippet.id === id);
+        if (!original) {
+          throw new EntityNotFoundError('Snippet', id);
+        }
+
+        const prefix = library.settings.shortcutPrefix;
+        const shortcutBody = original.shortcut.slice(prefix.length);
+        let suffixIndex = 1;
+        let shortcut: string;
+        do {
+          const suffix = suffixIndex === 1 ? '-copy' : `-copy-${suffixIndex}`;
+          shortcut = `${prefix}${shortcutBody.slice(0, MAX_SHORTCUT_BODY_LENGTH - suffix.length)}${suffix}`;
+          suffixIndex += 1;
+        } while (
+          library.snippets.some(
+            (snippet) => snippet.shortcut.toLocaleLowerCase() === shortcut.toLocaleLowerCase(),
+          )
+        );
+
+        const timestamp = new Date().toISOString();
+        const duplicate: Snippet = {
+          ...original,
+          id: crypto.randomUUID(),
+          title: `Copy of ${original.title}`.slice(0, MAX_TITLE_LENGTH),
+          shortcut,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          usageCount: 0,
+        };
+        return { ...library, snippets: [...library.snippets, duplicate] };
       })
       .then((library) => library.snippets[library.snippets.length - 1]);
   }

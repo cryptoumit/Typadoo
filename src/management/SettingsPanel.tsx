@@ -4,23 +4,40 @@ import { isValidShortcutPrefix } from '../lib/validation';
 
 interface SettingsPanelProps {
   library: SnippetLibrary;
-  onSave: (changes: {
-    shortcutPrefix: string;
-    theme: SnippetLibrary['settings']['theme'];
-  }) => Promise<void>;
+  onSave: (changes: { shortcutPrefix: string }) => Promise<void>;
+  onThemeChange: (theme: SnippetLibrary['settings']['theme']) => Promise<void>;
 }
 
-export function SettingsPanel({ library, onSave }: SettingsPanelProps) {
+export function SettingsPanel({ library, onSave, onThemeChange }: SettingsPanelProps) {
   const [shortcutPrefix, setShortcutPrefix] = useState(library.settings.shortcutPrefix);
   const [theme, setTheme] = useState(library.settings.theme);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingTheme, setSavingTheme] = useState(false);
 
   useEffect(() => {
     setShortcutPrefix(library.settings.shortcutPrefix);
     setTheme(library.settings.theme);
   }, [library.settings.shortcutPrefix, library.settings.theme]);
+
+  async function changeTheme(nextTheme: SnippetLibrary['settings']['theme']) {
+    setTheme(nextTheme);
+    document.documentElement.dataset.theme = nextTheme;
+    setSavingTheme(true);
+    setError(null);
+    setSaved(false);
+    try {
+      await onThemeChange(nextTheme);
+      setSaved(true);
+    } catch (saveError) {
+      setTheme(library.settings.theme);
+      document.documentElement.dataset.theme = library.settings.theme;
+      setError(saveError instanceof Error ? saveError.message : 'Could not save your theme.');
+    } finally {
+      setSavingTheme(false);
+    }
+  }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,7 +60,7 @@ export function SettingsPanel({ library, onSave }: SettingsPanelProps) {
     setError(null);
     setSaved(false);
     try {
-      await onSave({ shortcutPrefix, theme });
+      await onSave({ shortcutPrefix });
       setSaved(true);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Could not save your settings.');
@@ -85,12 +102,12 @@ export function SettingsPanel({ library, onSave }: SettingsPanelProps) {
           <span>Appearance</span>
           <select
             value={theme}
+            disabled={savingTheme}
             onChange={(event) => {
               const nextTheme = event.target.value;
               if (nextTheme === 'system' || nextTheme === 'light' || nextTheme === 'dark') {
-                setTheme(nextTheme);
+                void changeTheme(nextTheme);
               }
-              setSaved(false);
             }}
           >
             <option value="system">Match device</option>
@@ -121,8 +138,8 @@ export function SettingsPanel({ library, onSave }: SettingsPanelProps) {
           </p>
         )}
         <div className="form-actions">
-          <button className="button button-primary" type="submit" disabled={saving}>
-            {saving ? 'Saving…' : 'Save settings'}
+          <button className="button button-primary" type="submit" disabled={saving || savingTheme}>
+            {saving || savingTheme ? 'Saving…' : 'Save settings'}
           </button>
         </div>
       </form>
