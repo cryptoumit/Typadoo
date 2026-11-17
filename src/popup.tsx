@@ -1,9 +1,36 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import type { Snippet, SnippetLibrary } from './types';
 import { libraryRepository } from './management/client';
 import { searchSnippets } from './services/search';
+import { getSiteAccess, originPatternIncludesSite } from './expansion/site-access';
+import { ENABLE_CURRENT_SITE, type ExpansionResponse } from './expansion/protocol';
 import './styles.css';
+
+interface CurrentSite {
+  tabId: number;
+  origin: string;
+  originPattern: string;
+  granted: boolean;
+  canRevoke: boolean;
+}
+
+async function readCurrentSite(): Promise<CurrentSite | null> {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const siteAccess = typeof tab?.url === 'string' ? getSiteAccess(tab.url) : null;
+  if (tab?.id === undefined || !siteAccess) return null;
+
+  const permissions = await chrome.permissions.getAll();
+  const origins = permissions.origins ?? [];
+  return {
+    tabId: tab.id,
+    ...siteAccess,
+    granted: origins.some((pattern) =>
+      originPatternIncludesSite(pattern, siteAccess.originPattern),
+    ),
+    canRevoke: origins.includes(siteAccess.originPattern),
+  };
+}
 
 export function Popup() {
   const [library, setLibrary] = useState<SnippetLibrary | null>(null);
@@ -11,6 +38,11 @@ export function Popup() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [currentSite, setCurrentSite] = useState<CurrentSite | null>(null);
+  const [siteLoading, setSiteLoading] = useState(true);
+  const [siteBusy, setSiteBusy] = useState(false);
+  const [siteError, setSiteError] = useState<string | null>(null);
+  const [siteNotice, setSiteNotice] = useState<string | null>(null);
   const theme = library?.settings.theme;
 
   useEffect(() => {
@@ -35,6 +67,103 @@ export function Popup() {
       active = false;
     };
   }, []);
+
+  const refreshCurrentSite = useCallback(async () => {
+    setSiteLoading(true);
+    setSiteError(null);
+    try {
+      setCurrentSite(await readCurrentSite());
+    } catch (siteLoadError) {
+      setCurrentSite(null);
+      setSiteError(
+        siteLoadError instanceof Error ? siteLoadError.message : 'Could not check website access.',
+      );
+    } finally {
+      setSiteLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void readCurrentSite()
+      .then((site) => {
+        if (active) setCurrentSite(site);
+      })
+      .catch((siteLoadError: unknown) => {
+        if (active) {
+          setCurrentSite(null);
+          setSiteError(
+            siteLoadError instanceof Error
+              ? siteLoadError.message
+              : 'Could not check website access.',
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setSiteLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function toggleCurrentSiteAccess() {
+    if (!currentSite) return;
+    setSiteBusy(true);
+    setSiteError(null);
+    setSiteNotice(null);
+
+    try {
+      if (currentSite.granted) {
+        if (!currentSite.canRevoke) {
+          setSiteError('This site is covered by broader access. Manage that permission in Chrome.');
+          return;
+        }
+        const removed = await chrome.permissions.remove({
+          origins: [currentSite.originPattern],
+        });
+        if (!removed) {
+          setSiteError('Chrome did not remove this website permission.');
+          return;
+        }
+        await refreshCurrentSite();
+        setSiteNotice('Website access revoked. Automatic expansion is disabled here.');
+        return;
+      }
+
+      const granted = await chrome.permissions.request({
+        origins: [currentSite.originPattern],
+      });
+      if (!granted) {
+        setSiteError('Permission was not granted. Manual copy is still available.');
+        return;
+      }
+
+      const response: ExpansionResponse = await chrome.runtime.sendMessage({
+        type: ENABLE_CURRENT_SITE,
+        tabId: currentSite.tabId,
+        originPattern: currentSite.originPattern,
+      });
+      if (!response?.ok) {
+        const message = response?.error ?? 'Typadoo could not start on this website.';
+        await refreshCurrentSite();
+        setSiteError(message);
+        return;
+      }
+
+      await refreshCurrentSite();
+      setSiteNotice(`Automatic expansion enabled for ${currentSite.origin}.`);
+    } catch (permissionError) {
+      const message =
+        permissionError instanceof Error
+          ? permissionError.message
+          : 'Could not update website access.';
+      await refreshCurrentSite();
+      setSiteError(message);
+    } finally {
+      setSiteBusy(false);
+    }
+  }
 
   const visibleSnippets = useMemo(() => {
     if (!library) return [];
@@ -91,6 +220,43 @@ export function Popup() {
           </button>
         )}
       </label>
+
+      <section className="popup-site-access" aria-label="Automatic expansion website access">
+        <div>
+          <h2>Automatic expansion</h2>
+          {siteLoading ? (
+            <p role="status">Checking this website…</p>
+          ) : currentSite ? (
+            <>
+              <p>{currentSite.origin}</p>
+              <p className="site-access-status" role={siteError ? 'alert' : 'status'}>
+                {siteError ??
+                  (currentSite.granted
+                    ? currentSite.canRevoke
+                      ? 'Enabled on this site. Host access covers all ports.'
+                      : 'Enabled by a broader host permission.'
+                    : 'Not enabled on this site.')}
+              </p>
+              {siteNotice && <p role="status">{siteNotice}</p>}
+            </>
+          ) : (
+            <p role={siteError ? 'alert' : 'status'}>
+              {siteError ?? 'Open an HTTP or HTTPS website to manage access.'}
+            </p>
+          )}
+        </div>
+        {currentSite && !siteLoading && (currentSite.canRevoke || !currentSite.granted) && (
+          <button
+            className="button button-small button-secondary"
+            type="button"
+            aria-label={`${currentSite.granted ? 'Disable' : 'Enable'} Typadoo on site`}
+            disabled={siteBusy}
+            onClick={() => void toggleCurrentSiteAccess()}
+          >
+            {siteBusy ? 'Updating…' : currentSite.granted ? 'Disable' : 'Enable'}
+          </button>
+        )}
+      </section>
 
       {loading ? (
         <p className="popup-state" role="status">

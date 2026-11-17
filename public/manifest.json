@@ -2,9 +2,10 @@
   "manifest_version": 3,
   "name": "Typadoo",
   "version": "0.1.0",
+  "minimum_chrome_version": "96",
   "description": "Less typing. More doing.",
-  "permissions": ["storage", "clipboardWrite"],
-  "optional_host_permissions": ["<all_urls>"],
+  "permissions": ["storage", "clipboardWrite", "activeTab", "scripting"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
   "action": {
     "default_title": "Typadoo",
     "default_popup": "popup.html"
@@ -14,6 +15,7 @@
     "open_in_tab": true
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   }
 }

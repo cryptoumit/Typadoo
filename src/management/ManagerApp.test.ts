@@ -9,6 +9,12 @@ function installChromeStorage() {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   vi.stubGlobal('chrome', {
     runtime: { openOptionsPage: vi.fn().mockResolvedValue(undefined) },
+    permissions: {
+      getAll: vi.fn(async () => ({ origins: [] })),
+      remove: vi.fn().mockResolvedValue(true),
+      onAdded: { addListener: vi.fn(), removeListener: vi.fn() },
+      onRemoved: { addListener: vi.fn(), removeListener: vi.fn() },
+    },
     storage: {
       local: {
         get: vi.fn(async (key: string) => ({ [key]: data[key] })),
@@ -177,6 +183,43 @@ describe('snippet management workspace', () => {
     expect((stored['typadoo.library'] as { settings: { theme: string } }).settings.theme).toBe(
       'dark',
     );
+    await act(async () => root.unmount());
+  });
+
+  it('saves the selected automatic trigger and explicit-trigger preference', async () => {
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    await act(async () => root.render(React.createElement(ManagerApp)));
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
+        .find((button) => button.textContent === 'Settings')
+        ?.click();
+    });
+
+    const trigger = container.querySelectorAll<HTMLSelectElement>('.settings-form select')[1];
+    expect(trigger).toBeDefined();
+    await act(async () => setSelectValue(trigger, 'tab'));
+    expect(trigger.value).toBe('tab');
+    const explicitTrigger = container.querySelector<HTMLInputElement>(
+      '.settings-form input[type="checkbox"]',
+    );
+    expect(explicitTrigger?.checked).toBe(true);
+    await act(async () => {
+      container
+        .querySelector('.settings-form')
+        ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+
+    expect(container.textContent).toContain('Settings saved.');
+    expect(
+      (stored['typadoo.library'] as { settings: Record<string, unknown> }).settings,
+    ).toMatchObject({
+      triggerMode: 'tab',
+      expandOnSpace: false,
+      expandOnTab: true,
+      requireExplicitTrigger: true,
+    });
     await act(async () => root.unmount());
   });
 

@@ -2,13 +2,13 @@
 
 **Less typing. More doing.**
 
-Typadoo is being built as a lightweight text expansion and productivity tool for customer support professionals and other busy teams. Its intended goal is to reduce repetitive typing and help teams communicate more consistently.
+Typadoo is a lightweight text expansion and productivity tool for customer support professionals and other busy teams. It helps reduce repetitive typing and supports more consistent communication.
 
-The planned experience lets users create reusable text snippets, assign custom keyboard shortcuts, and expand them while working. From customer support replies and troubleshooting instructions to internal notes, follow-ups, and everyday messages, Typadoo is intended to make frequently used text accessible with just a few keystrokes.
+Users can create reusable text snippets, assign custom keyboard shortcuts, and expand them in supported fields on websites they explicitly allow. From customer support replies and troubleshooting instructions to internal notes, follow-ups, and everyday messages, Typadoo makes frequently used text accessible with just a few keystrokes.
 
 ### Planned Product Features
 
-These are product goals, not all currently implemented. See the implementation backlog below for current status.
+See the implementation backlog below for current status. Dynamic variables remain a planned feature.
 
 - **Text Expansion:** Replace custom shortcuts with full text snippets.
 - **Snippet Library:** Create, edit, organize, and manage reusable text.
@@ -67,8 +67,9 @@ npm run format
 - Local-first architecture only.
 - No backend, accounts, cloud sync, telemetry, or remote analytics.
 - Requests `storage` for the local library and `clipboardWrite` for user-triggered snippet copying.
-- Website access remains optional and user-controlled.
-- Popup search and snippet copying are available; direct insertion into unsupported editors remains planned.
+- Uses `activeTab` and `scripting` to enable expansion only after the user grants access.
+- Website access is optional and user-controlled; the popup requests the current host and scheme, not all websites.
+- The popup provides search and snippet copying as a manual fallback.
 - The data layer validates shortcut formats, configurable prefixes, and duplicates.
 - The storage layer validates full-library JSON import/export and preserves a recovery backup.
 
@@ -87,10 +88,36 @@ repository exposes recovery of a valid backup, and attempts to restore the previ
 replacement write fails.
 
 The storage foundation is available in `src/storage/` and the typed snippet, group, and settings
-services are in `src/services/`. The extension options page now provides snippet and group
-management, search and filtering, settings, and JSON backup/restore. The popup provides favorite
-and search-based snippet copying. Automatic expansion, content scripts, and variables are not
-implemented yet.
+services are in `src/services/`. The extension options page provides snippet and group management,
+search and filtering, settings, and JSON backup/restore. The popup provides favorite and
+search-based snippet copying.
+
+## Text expansion
+
+Automatic expansion is available in standard `<textarea>` elements and single-line
+`text`, `search`, `url`, and `tel` inputs. Enable it from the popup on the current site or add a
+website URL in the manager's Settings. Typadoo asks for an origin permission scoped to that scheme
+and hostname (all paths and ports on that host);
+it does not request access to subdomains or other websites. Chrome remembers the grant across
+browser sessions until it is revoked. Add a site by URL, review granted website patterns, and
+remove individual grants from the manager's **Settings → Enabled websites** list, or manage them
+in Chrome's extension settings.
+
+The manager's **Automatic expansion trigger** setting selects Space, Tab, or manual-only mode.
+Space is the default, with the explicit trigger key required. Turning off that checkbox expands
+as soon as the shortcut is completed. Tab is intercepted only when a configured shortcut matches.
+Multiline snippets are supported in textareas; they are not inserted into single-line fields.
+Expansion preserves the caret, dispatches a normal input event, and does not replace selected text.
+Paste does not trigger expansion.
+
+Password, email, number, date, and other specialized inputs are not supported. Neither are
+`contenteditable` regions, rich-text editors, or fields inside frames. Use the popup's search and
+copy workflow for those cases. Dynamic snippet variables are not implemented.
+
+The extension registers a content script only for granted web origins. The background sends that
+site's content script enabled snippets and the settings needed for matching; typed field contents
+are processed locally in the page and are never sent to the background or an external service.
+Browser-level verification on representative websites remains part of Milestone 5.
 
 ## Implementation backlog
 
@@ -123,14 +150,14 @@ implemented yet.
 
 ### Milestone 4 — Expansion engine
 
-- [ ] Implement trigger detection for standard inputs and textareas.
-- [ ] Add manual search and insertion fallback workflow.
-- [ ] Support multiline snippets and cursor-safe replacements.
-- [ ] Handle unsupported editors gracefully.
+- [x] Implement Space, Tab, and optional immediate trigger handling in supported standard inputs and textareas.
+- [x] Keep popup search and copy available as the manual fallback.
+- [x] Support multiline textarea snippets and cursor-safe replacements.
+- [x] Skip unsupported controls and editors without intercepting their input.
 
 ### Milestone 5 — Hardening and QA
 
-- [ ] Validate permissions and privacy behavior.
+- [ ] Verify permissions and privacy behavior in Chrome.
 - [ ] Test real-world browser compatibility on representative pages.
 - [ ] Add backup and recovery checks.
 - [ ] Prepare production build and Chrome Web Store packaging shell.

@@ -5,11 +5,32 @@ import type { Snippet } from './types';
 import { createDefaultLibrary } from './storage/defaults';
 import { Popup } from './popup';
 
-function stubChrome(storedData: Record<string, unknown> = {}) {
+function stubChrome(
+  storedData: Record<string, unknown> = {},
+  siteUrl = 'https://support.example.com/ticket/1',
+  initialOrigins: string[] = [],
+  grantRequest = false,
+) {
   const openOptionsPage = vi.fn().mockResolvedValue(undefined);
+  const sendMessage = vi.fn().mockResolvedValue({ ok: true });
+  const origins = new Set(initialOrigins);
+  const request = vi.fn(async ({ origins: requestedOrigins }: { origins: string[] }) => {
+    if (grantRequest) requestedOrigins.forEach((origin) => origins.add(origin));
+    return grantRequest;
+  });
+  const remove = vi.fn(async ({ origins: removedOrigins }: { origins: string[] }) => {
+    removedOrigins.forEach((origin) => origins.delete(origin));
+    return true;
+  });
   const data = { ...storedData };
   vi.stubGlobal('chrome', {
-    runtime: { openOptionsPage },
+    runtime: { openOptionsPage, sendMessage },
+    tabs: { query: vi.fn().mockResolvedValue([{ id: 7, url: siteUrl }]) },
+    permissions: {
+      getAll: vi.fn(async () => ({ origins: [...origins] })),
+      request,
+      remove,
+    },
     storage: {
       local: {
         get: vi.fn(async (key: string) => ({ [key]: data[key] })),
@@ -20,7 +41,7 @@ function stubChrome(storedData: Record<string, unknown> = {}) {
       },
     },
   });
-  return { openOptionsPage };
+  return { openOptionsPage, request, remove, sendMessage };
 }
 
 describe('popup manager action', () => {
@@ -50,7 +71,7 @@ describe('popup manager action', () => {
     });
 
     await act(async () => {
-      container.querySelector('button')?.click();
+      container.querySelector<HTMLButtonElement>('.popup-manager-button')?.click();
     });
 
     expect(openOptionsPage).toHaveBeenCalledOnce();
@@ -149,5 +170,103 @@ describe('popup manager action', () => {
 
     expect(writeText).toHaveBeenCalledWith(snippet.content);
     await act(async () => root.unmount());
+  });
+
+  it('requests only the current site after the user enables it', async () => {
+    const { request, sendMessage } = stubChrome(
+      {},
+      'https://support.example.com/tickets/1',
+      [],
+      true,
+    );
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    await act(async () => root.render(React.createElement(Popup)));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(request).not.toHaveBeenCalled();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[aria-label="Enable Typadoo on site"]')?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(request).toHaveBeenCalledWith({
+      origins: ['https://support.example.com/*'],
+    });
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: 'typadoo:enable-current-site',
+      tabId: 7,
+      originPattern: 'https://support.example.com/*',
+    });
+    expect(container.textContent).toContain('Automatic expansion enabled');
+    await act(async () => root.unmount());
+  });
+
+  it('reports denied website access and keeps manual copy available', async () => {
+    const { request, sendMessage } = stubChrome();
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    await act(async () => root.render(React.createElement(Popup)));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[aria-label="Enable Typadoo on site"]')?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(request).toHaveBeenCalledWith({
+      origins: ['https://support.example.com/*'],
+    });
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Permission was not granted');
+    expect(container.querySelector('.popup-manager-button')).not.toBeNull();
+    await act(async () => root.unmount());
+  });
+
+  it('removes the current site permission and reports revoked access', async () => {
+    const pattern = 'https://support.example.com/*';
+    const { remove } = stubChrome({}, 'https://support.example.com/tickets/1', [pattern]);
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    await act(async () => root.render(React.createElement(Popup)));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[aria-label="Disable Typadoo on site"]')?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(remove).toHaveBeenCalledWith({ origins: [pattern] });
+    expect(container.textContent).toContain('Website access revoked');
+    await act(async () => root.unmount());
+  });
+
+  it('does not request access on browser pages or broaden existing permissions', async () => {
+    const unsupported = stubChrome({}, 'chrome://extensions');
+    const unsupportedContainer = document.createElement('div');
+    const unsupportedRoot = createRoot(unsupportedContainer);
+    await act(async () => unsupportedRoot.render(React.createElement(Popup)));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(unsupportedContainer.textContent).toContain('Open an HTTP or HTTPS website');
+    expect(unsupported.request).not.toHaveBeenCalled();
+    await act(async () => unsupportedRoot.unmount());
+
+    const broad = stubChrome({}, 'https://support.example.com/tickets/1', ['https://*/*']);
+    const broadContainer = document.createElement('div');
+    const broadRoot = createRoot(broadContainer);
+    await act(async () => broadRoot.render(React.createElement(Popup)));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(broadContainer.textContent).toContain('Enabled by a broader host permission');
+    expect(broadContainer.querySelector('[aria-label="Disable Typadoo on site"]')).toBeNull();
+    expect(broad.request).not.toHaveBeenCalled();
+    await act(async () => broadRoot.unmount());
   });
 });
