@@ -62,6 +62,14 @@ npm run format
 5. Click Load unpacked.
 6. Select the `dist` directory.
 
+### Downloading a packaged extension
+
+1. In GitHub, open **Actions → Build automation → Run workflow** to create a downloadable build artifact.
+2. Download the `typadoo-extension` artifact from the completed workflow run and extract the ZIP. Its root contains the unpacked extension files.
+3. Alternatively, publish a GitHub Release whose tag matches the extension version in `public/manifest.json` (with or without a `v` prefix). The workflow attaches the ZIP and its SHA-256 checksum to that Release.
+
+The workflow runs the test, lint, build, and dependency-audit checks before packaging. It does not publish to the Chrome Web Store.
+
 ### Project principles
 
 - Local-first architecture only.
