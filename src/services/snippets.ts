@@ -1,4 +1,5 @@
 import type { Snippet, SnippetDraft } from '../types';
+import { normalizeShortcut } from '../lib/validation';
 import { LibraryRepository } from '../storage/repository';
 import { MAX_TITLE_LENGTH } from '../storage/schema';
 import { EntityNotFoundError } from './errors';
@@ -60,7 +61,7 @@ export class SnippetService {
           suffixIndex += 1;
         } while (
           library.snippets.some(
-            (snippet) => snippet.shortcut.toLocaleLowerCase() === shortcut.toLocaleLowerCase(),
+            (snippet) => normalizeShortcut(snippet.shortcut) === normalizeShortcut(shortcut),
           )
         );
 

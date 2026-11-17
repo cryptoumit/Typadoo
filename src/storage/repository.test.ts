@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { importLibraryJson } from './import-export';
 import {
   LIBRARY_STORAGE_KEY,
+  createChromeStoragePort,
   LibraryRepository,
   RECOVERY_STORAGE_KEY,
   StorageOperationError,
@@ -20,6 +21,50 @@ describe('library repository', () => {
     expect(library.snippets).toEqual([]);
     expect(library.groups).toHaveLength(7);
     expect(storage.values.get(LIBRARY_STORAGE_KEY)).toEqual(library);
+  });
+
+  it('preserves concurrent updates made through independent repository instances', async () => {
+    const values = new Map<string, unknown>();
+    vi.stubGlobal('chrome', {
+      storage: {
+        local: {
+          async get(key: string) {
+            return values.has(key) ? { [key]: structuredClone(values.get(key)) } : {};
+          },
+          async set(items: Record<string, unknown>) {
+            for (const [key, value] of Object.entries(items)) {
+              values.set(key, structuredClone(value));
+            }
+          },
+          async remove(key: string) {
+            values.delete(key);
+          },
+        },
+      },
+    });
+
+    try {
+      const firstRepository = new LibraryRepository(createChromeStoragePort());
+      const secondRepository = new LibraryRepository(createChromeStoragePort());
+      await firstRepository.getLibrary();
+
+      await Promise.all([
+        firstRepository.updateLibrary((library) => ({
+          ...library,
+          settings: { ...library.settings, theme: 'dark' },
+        })),
+        secondRepository.updateLibrary((library) => ({
+          ...library,
+          settings: { ...library.settings, debugMode: true },
+        })),
+      ]);
+
+      const updated = await firstRepository.getLibrary();
+      expect(updated.settings.theme).toBe('dark');
+      expect(updated.settings.debugMode).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('propagates storage read and write failures', async () => {

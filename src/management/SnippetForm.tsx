@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Snippet, SnippetDraft, SnippetGroup } from '../types';
-import { isValidShortcut } from '../lib/validation';
+import { isValidShortcut, normalizeShortcut } from '../lib/validation';
 import {
   LibraryValidationError,
   MAX_CONTENT_LENGTH,
@@ -124,7 +124,7 @@ export function SnippetForm({
       snippets.some(
         (item) =>
           item.id !== snippet?.id &&
-          item.shortcut.toLocaleLowerCase() === shortcut.toLocaleLowerCase(),
+          normalizeShortcut(item.shortcut) === normalizeShortcut(shortcut),
       )
     ) {
       fieldErrors.shortcut = 'That shortcut is already in use.';

@@ -8,6 +8,7 @@ export class MemoryStorage implements StoragePort {
   readonly values = new Map<string, unknown>();
   failNextSetFor?: string;
   failNextGetFor?: string;
+  private lockQueue: Promise<void> = Promise.resolve();
 
   async get(key: string): Promise<unknown> {
     if (this.failNextGetFor === key) {
@@ -27,5 +28,14 @@ export class MemoryStorage implements StoragePort {
 
   async remove(key: string): Promise<void> {
     this.values.delete(key);
+  }
+
+  runExclusive<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.lockQueue.then(operation);
+    this.lockQueue = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
   }
 }

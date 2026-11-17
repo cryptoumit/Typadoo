@@ -1,4 +1,8 @@
-import { isValidShortcut, isValidShortcutPrefix } from '../lib/validation';
+import {
+  isValidShortcut,
+  isValidShortcutPrefix,
+  normalizeShortcut,
+} from '../lib/validation';
 import type { Snippet, SnippetGroup, SnippetLibrary, TypadooSettings } from '../types';
 
 export const LIBRARY_SCHEMA_VERSION = 1;
@@ -261,7 +265,7 @@ export function assertValidLibrary(value: unknown): asserts value is SnippetLibr
     if (!groupIds.has(snippet.groupId)) {
       invalid(`snippets[${index}].groupId`, 'must reference an existing group');
     }
-    const shortcut = snippet.shortcut.toLocaleLowerCase();
+    const shortcut = normalizeShortcut(snippet.shortcut);
     if (shortcuts.has(shortcut)) {
       invalid(`snippets[${index}].shortcut`, 'duplicates another shortcut');
     }

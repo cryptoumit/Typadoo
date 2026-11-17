@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { EntityNotFoundError } from './errors';
 import { GroupService } from './groups';
 import { SettingsService } from './settings';
@@ -100,6 +100,32 @@ describe('snippet and group services', () => {
     await expect(
       snippets.create({ ...draft, title: 'Invalid', shortcut: 'greet' }),
     ).rejects.toThrow(/must start with/);
+  });
+
+  it('rejects duplicate shortcuts independently of the default locale', async () => {
+    const localeLowercase = vi
+      .spyOn(String.prototype, 'toLocaleLowerCase')
+      .mockImplementation(function (this: string) {
+        return this.replace(/I/g, 'ı').replace(/İ/g, 'i').toLowerCase();
+      });
+
+    try {
+      const { snippets, groups } = createServices();
+      const [group] = await groups.list();
+      const draft = {
+        title: 'Uppercase I',
+        shortcut: ';I',
+        content: 'First',
+        groupId: group.id,
+      };
+
+      await snippets.create(draft);
+      await expect(
+        snippets.create({ ...draft, title: 'Lowercase i', shortcut: ';i' }),
+      ).rejects.toThrow(/duplicates another shortcut/);
+    } finally {
+      localeLowercase.mockRestore();
+    }
   });
 
   it('creates and updates groups, reassigning snippets when a custom group is deleted', async () => {

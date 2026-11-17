@@ -4,11 +4,13 @@ import { assertValidLibrary, parseLibraryData } from './schema';
 
 export const LIBRARY_STORAGE_KEY = 'typadoo.library';
 export const RECOVERY_STORAGE_KEY = 'typadoo.recoveryBackup';
+const LIBRARY_LOCK_NAME = 'typadoo.library';
 
 export interface StoragePort {
   get(key: string): Promise<unknown>;
   set(key: string, value: unknown): Promise<void>;
   remove(key: string): Promise<void>;
+  runExclusive<T>(operation: () => Promise<T>): Promise<T>;
 }
 
 export class StorageOperationError extends Error {
@@ -45,6 +47,9 @@ export function createChromeStoragePort(): StoragePort {
         throw new StorageOperationError('remove', error);
       }
     },
+    runExclusive(operation) {
+      return navigator.locks.request(LIBRARY_LOCK_NAME, operation);
+    },
   };
 }
 
@@ -54,11 +59,11 @@ export class LibraryRepository {
   constructor(private readonly storage: StoragePort) {}
 
   getLibrary(): Promise<SnippetLibrary> {
-    return this.enqueue(() => this.readLibrary());
+    return this.runExclusive(() => this.readLibrary());
   }
 
   updateLibrary(update: (library: SnippetLibrary) => SnippetLibrary): Promise<SnippetLibrary> {
-    return this.enqueue(async () => {
+    return this.runExclusive(async () => {
       const current = await this.readLibrary();
       const updated = update(current);
       assertValidLibrary(updated);
@@ -69,7 +74,7 @@ export class LibraryRepository {
 
   replaceLibrary(library: SnippetLibrary): Promise<SnippetLibrary> {
     assertValidLibrary(library);
-    return this.enqueue(async () => {
+    return this.runExclusive(async () => {
       const previous = await this.readValue(LIBRARY_STORAGE_KEY);
       if (previous !== undefined) {
         const backup: RecoveryBackup = {
@@ -103,7 +108,7 @@ export class LibraryRepository {
   }
 
   getRecoveryBackup(): Promise<RecoveryBackup | null> {
-    return this.enqueue(async () => {
+    return this.runExclusive(async () => {
       const backup = await this.readValue(RECOVERY_STORAGE_KEY);
       if (backup === undefined) {
         return null;
@@ -183,5 +188,9 @@ export class LibraryRepository {
       () => undefined,
     );
     return result;
+  }
+
+  private runExclusive<T>(operation: () => Promise<T>): Promise<T> {
+    return this.enqueue(() => this.storage.runExclusive(operation));
   }
 }

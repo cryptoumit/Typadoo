@@ -2,6 +2,10 @@ export function normalizeShortcutPrefix(prefix: string): string {
   return prefix.trim() || ';';
 }
 
+export function normalizeShortcut(shortcut: string): string {
+  return shortcut.toLowerCase();
+}
+
 export function isValidShortcutPrefix(prefix: string): boolean {
   return /^[^A-Za-z0-9\s]{1,3}$/.test(prefix);
 }
