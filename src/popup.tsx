@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import type { Snippet, SnippetLibrary } from './types';
-import { libraryRepository } from './management/client';
+import { libraryRepository, settingsService } from './management/client';
 import { searchSnippets } from './services/search';
 import { getSiteAccess, originPatternIncludesSite } from './expansion/site-access';
 import { ENABLE_CURRENT_SITE, type ExpansionResponse } from './expansion/protocol';
@@ -48,6 +48,21 @@ export function Popup() {
   useEffect(() => {
     if (theme) document.documentElement.dataset.theme = theme;
   }, [theme]);
+
+  async function toggleTheme() {
+    if (!library) return;
+    const previousTheme = library.settings.theme;
+    const nextTheme = previousTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = nextTheme;
+    setLibrary({ ...library, settings: { ...library.settings, theme: nextTheme } });
+    try {
+      await settingsService.update({ theme: nextTheme });
+    } catch (themeError) {
+      document.documentElement.dataset.theme = previousTheme;
+      setLibrary({ ...library, settings: { ...library.settings, theme: previousTheme } });
+      setError(themeError instanceof Error ? themeError.message : 'Could not save your theme.');
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -202,6 +217,23 @@ export function Popup() {
           <strong>Typadoo</strong>
           <p>Less typing. More doing.</p>
         </div>
+        <button
+          className="popup-theme-toggle"
+          type="button"
+          role="switch"
+          aria-label="Dark mode"
+          aria-checked={theme === 'dark'}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          disabled={!library}
+          onClick={() => void toggleTheme()}
+        >
+          <svg className="popup-theme-moon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20.2 15.4A8.5 8.5 0 0 1 8.6 3.8 8.6 8.6 0 1 0 20.2 15.4Z" />
+          </svg>
+          <span className="popup-theme-track" aria-hidden="true">
+            <span className="popup-theme-thumb" />
+          </span>
+        </button>
       </header>
 
       <label className="search-field popup-search">
